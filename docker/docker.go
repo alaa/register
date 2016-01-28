@@ -28,7 +28,7 @@ func New() *Docker {
 func (d *Docker) ListRunningContainers(ch chan<- Containers, wg *sync.WaitGroup, errCh chan error) {
 	defer wg.Done()
 
-	var containerSlice []*docker.Container
+	var containerSlice Containers
 	containers, err := d.client.ListContainers(docker.ListContainersOptions{})
 	if err != nil {
 		errCh <- err
