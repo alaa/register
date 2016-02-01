@@ -32,15 +32,26 @@ func (d *Docker) ListRunningContainers(ch chan<- Containers, wg *sync.WaitGroup,
 	containers, err := d.client.ListContainers(docker.ListContainersOptions{})
 	if err != nil {
 		errCh <- err
+		return
 	}
 
 	for _, container := range containers {
 		details, err := d.client.InspectContainer(container.ID)
 		if err != nil {
 			errCh <- err
+			return
 		}
 		containerSlice = append(containerSlice, details)
 	}
 
 	ch <- containerSlice
+}
+
+func Lookup(serviceID string, containers Containers) bool {
+	for _, container := range containers {
+		if serviceID == container.ID {
+			return true
+		}
+	}
+	return false
 }
