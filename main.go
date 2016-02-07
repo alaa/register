@@ -19,21 +19,21 @@ func main() {
 	dockerCh := make(chan docker.Containers, 1)
 	consulCh := make(chan consul.Services, 1)
 
-	d := docker.New()
-	c := consul.New()
+	dockerAgent := docker.New()
+	consulAgent := consul.New()
 	tick := time.Tick(interval)
 
 	for {
 		select {
 		case <-tick:
 			wg.Add(2)
-			go d.ListRunningContainers(dockerCh, &wg, errCh)
-			go c.Services(consulCh, &wg, errCh)
+			go dockerAgent.ListRunningContainers(dockerCh, &wg, errCh)
+			go consulAgent.Services(consulCh, &wg, errCh)
 			wg.Wait()
 			ready <- struct{}{}
 
 		case <-ready:
-			go resync(dockerCh, consulCh)
+			go resync(dockerCh, consulCh, consulAgent)
 
 		case e := <-errCh:
 			log.Printf("Error channel: %s", e)
@@ -41,17 +41,20 @@ func main() {
 	}
 }
 
-func resync(dockerCh <-chan docker.Containers, consulCh <-chan consul.Services) {
+type ServiceDiscovery interface {
+	Register(string, string) error
+	Deregister(string) error
+}
+
+func resync(dockerCh <-chan docker.Containers, consulCh <-chan consul.Services, sd ServiceDiscovery) {
 	containers := <-dockerCh
 	services := <-consulCh
-
-	c := consul.New()
 
 	go func() {
 		for _, container := range containers {
 			if !consul.Lookup(container.ID, services) {
 				log.Println("registering ", container.Name)
-				if err := c.Register(container.ID, container.Name); err != nil {
+				if err := sd.Register(container.ID, container.Name); err != nil {
 					log.Println(err)
 				}
 			}
@@ -62,7 +65,7 @@ func resync(dockerCh <-chan docker.Containers, consulCh <-chan consul.Services) 
 		for _, service := range services {
 			if !docker.Lookup(service.ID, containers) {
 				log.Println("deregistering service ", service.ID)
-				c.Deregister(service.ID)
+				sd.Deregister(service.ID)
 			}
 		}
 	}()
