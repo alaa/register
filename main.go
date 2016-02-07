@@ -32,7 +32,7 @@ func main() {
 			wg.Wait()
 			ready <- struct{}{}
 
-		case _ = <-ready:
+		case <-ready:
 			go resync(dockerCh, consulCh)
 
 		case e := <-errCh:
