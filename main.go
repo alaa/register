@@ -33,7 +33,7 @@ func main() {
 			ready <- struct{}{}
 
 		case _ = <-ready:
-			resync(dockerCh, consulCh)
+			go resync(dockerCh, consulCh)
 
 		case e := <-errCh:
 			log.Printf("Error channel: %s", e)
@@ -47,19 +47,23 @@ func resync(dockerCh <-chan docker.Containers, consulCh <-chan consul.Services) 
 
 	c := consul.New()
 
-	for _, container := range containers {
-		if !consul.Lookup(container.ID, services) {
-			log.Println("registering ", container.Name)
-			if err := c.Register(container.ID, container.Name); err != nil {
-				log.Println(err)
+	go func() {
+		for _, container := range containers {
+			if !consul.Lookup(container.ID, services) {
+				log.Println("registering ", container.Name)
+				if err := c.Register(container.ID, container.Name); err != nil {
+					log.Println(err)
+				}
 			}
 		}
-	}
+	}()
 
-	for _, service := range services {
-		if !docker.Lookup(service.ID, containers) {
-			log.Println("deregistering service ", service.ID)
-			c.Deregister(service.ID)
+	go func() {
+		for _, service := range services {
+			if !docker.Lookup(service.ID, containers) {
+				log.Println("deregistering service ", service.ID)
+				c.Deregister(service.ID)
+			}
 		}
-	}
+	}()
 }
