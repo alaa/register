@@ -46,7 +46,6 @@ func (d *Docker) ListRunningContainers(ch chan<- Containers, wg *sync.WaitGroup)
 	}
 
 	ch <- containerSlice
-	fmt.Println("docker.containers")
 }
 
 func Lookup(serviceID string, containers Containers) bool {

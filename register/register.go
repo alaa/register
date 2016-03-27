@@ -1,4 +1,4 @@
-package resync
+package register
 
 import (
 	"log"
@@ -25,7 +25,8 @@ func New() *Register {
 	}
 }
 
-func (r *Register) Read(wg sync.WaitGroup) {
+func (r *Register) Read() {
+	var wg sync.WaitGroup
 	for {
 		select {
 		case <-time.After(5 * time.Second):
@@ -38,14 +39,21 @@ func (r *Register) Read(wg sync.WaitGroup) {
 }
 
 func (r *Register) Update() {
+	var wg sync.WaitGroup
 	for {
-		containers, services := <-r.dockerCh, <-r.consulCh
-		r.register(containers, services)
-		r.deregister(containers, services)
+		select {
+		default:
+			containers, services := <-r.dockerCh, <-r.consulCh
+			wg.Add(2)
+			r.register(containers, services, &wg)
+			r.deregister(containers, services, &wg)
+			wg.Wait()
+		}
 	}
 }
 
-func (r *Register) register(containers docker.Containers, services consul.Services) {
+func (r *Register) register(containers docker.Containers, services consul.Services, wg *sync.WaitGroup) {
+	defer wg.Done()
 	for _, container := range containers {
 		if !consul.Lookup(container.ID, services) {
 			log.Println("registering ", container.Name)
@@ -56,7 +64,8 @@ func (r *Register) register(containers docker.Containers, services consul.Servic
 	}
 }
 
-func (r *Register) deregister(containers docker.Containers, services consul.Services) {
+func (r *Register) deregister(containers docker.Containers, services consul.Services, wg *sync.WaitGroup) {
+	defer wg.Done()
 	for _, service := range services {
 		if !docker.Lookup(service.ID, containers) {
 			log.Println("deregistering service ", service.ID)

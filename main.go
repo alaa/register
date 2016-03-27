@@ -1,15 +1,9 @@
 package main
 
-import (
-	"sync"
-
-	"./resync"
-)
+import "./register"
 
 func main() {
-	var wg sync.WaitGroup
-
-	register := resync.New()
-	go register.Read(wg)
-	register.Update()
+	reg := register.New()
+	go reg.Read()
+	reg.Update()
 }
