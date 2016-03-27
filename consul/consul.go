@@ -7,11 +7,6 @@ import (
 	consul "github.com/hashicorp/consul/api"
 )
 
-type ServiceDiscovery interface {
-	Register(string, string) error
-	Deregister(string) error
-}
-
 type Consul struct {
 	agent *consul.Agent
 }
