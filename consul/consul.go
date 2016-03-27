@@ -1,10 +1,16 @@
 package consul
 
 import (
+	"fmt"
 	"sync"
 
 	consul "github.com/hashicorp/consul/api"
 )
+
+type ServiceDiscovery interface {
+	Register(string, string) error
+	Deregister(string) error
+}
 
 type Consul struct {
 	agent *consul.Agent
@@ -22,14 +28,15 @@ func New() *Consul {
 	}
 }
 
-func (c *Consul) Services(consulCh chan Services, wg *sync.WaitGroup, errCh chan error) {
+func (c *Consul) Services(consulCh chan Services, wg *sync.WaitGroup) {
 	defer wg.Done()
 	services, err := c.agent.Services()
 	if err != nil {
-		errCh <- err
+		fmt.Println(err)
 		return
 	}
 	consulCh <- services
+	fmt.Println("consul.services")
 }
 
 func (c *Consul) Register(serviceID, serviceName string) error {

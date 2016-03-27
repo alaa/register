@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"fmt"
 	"log"
 	"sync"
 
@@ -25,26 +26,27 @@ func New() *Docker {
 	}
 }
 
-func (d *Docker) ListRunningContainers(ch chan<- Containers, wg *sync.WaitGroup, errCh chan error) {
+func (d *Docker) ListRunningContainers(ch chan<- Containers, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	var containerSlice Containers
 	containers, err := d.client.ListContainers(docker.ListContainersOptions{})
 	if err != nil {
-		errCh <- err
+		fmt.Println(err)
 		return
 	}
 
 	for _, container := range containers {
 		details, err := d.client.InspectContainer(container.ID)
 		if err != nil {
-			errCh <- err
+			fmt.Println(err)
 			return
 		}
 		containerSlice = append(containerSlice, details)
 	}
 
 	ch <- containerSlice
+	fmt.Println("docker.containers")
 }
 
 func Lookup(serviceID string, containers Containers) bool {
