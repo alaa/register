@@ -9,42 +9,58 @@ import (
 	"../docker"
 )
 
-func Read(dockerAgent *docker.Docker, dockerCh chan docker.Containers, consulAgent *consul.Consul, consulCh chan consul.Services, wg sync.WaitGroup) {
+type Register struct {
+	dockerAgent *docker.Docker
+	dockerCh    chan docker.Containers
+	consulAgent *consul.Consul
+	consulCh    chan consul.Services
+}
+
+func New() *Register {
+	return &Register{
+		dockerAgent: docker.New(),
+		dockerCh:    make(chan docker.Containers),
+		consulAgent: consul.New(),
+		consulCh:    make(chan consul.Services),
+	}
+}
+
+func (r *Register) Read(wg sync.WaitGroup) {
 	for {
 		select {
 		case <-time.After(5 * time.Second):
 			wg.Add(2)
-			go dockerAgent.ListRunningContainers(dockerCh, &wg)
-			go consulAgent.Services(consulCh, &wg)
+			go r.dockerAgent.ListRunningContainers(r.dockerCh, &wg)
+			go r.consulAgent.Services(r.consulCh, &wg)
 			wg.Wait()
 		}
 	}
 }
 
-func Write(dockerCh <-chan docker.Containers, consulCh <-chan consul.Services, consulAgent consul.ServiceDiscovery) {
+func (r *Register) Update() {
 	for {
-		containers, services := <-dockerCh, <-consulCh
-		register(containers, services, consulAgent)
-		deregister(containers, services, consulAgent)
+		containers, services := <-r.dockerCh, <-r.consulCh
+		r.register(containers, services)
+		r.deregister(containers, services)
 	}
 }
 
-func register(containers docker.Containers, services consul.Services, consulAgent consul.ServiceDiscovery) {
+func (r *Register) register(containers docker.Containers, services consul.Services) {
 	for _, container := range containers {
 		if !consul.Lookup(container.ID, services) {
 			log.Println("registering ", container.Name)
-			if err := consulAgent.Register(container.ID, container.Name); err != nil {
+			if err := r.consulAgent.Register(container.ID, container.Name); err != nil {
 				log.Println(err)
 			}
 		}
 	}
 }
 
-func deregister(containers docker.Containers, services consul.Services, consulAgent consul.ServiceDiscovery) {
+func (r *Register) deregister(containers docker.Containers, services consul.Services) {
 	for _, service := range services {
 		if !docker.Lookup(service.ID, containers) {
 			log.Println("deregistering service ", service.ID)
-			consulAgent.Deregister(service.ID)
+			r.consulAgent.Deregister(service.ID)
 		}
 	}
 }
