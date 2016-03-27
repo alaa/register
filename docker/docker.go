@@ -44,7 +44,6 @@ func (d *Docker) ListRunningContainers(ch chan<- Containers, wg *sync.WaitGroup)
 		}
 		containerSlice = append(containerSlice, details)
 	}
-
 	ch <- containerSlice
 }
 

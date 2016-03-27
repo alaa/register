@@ -30,7 +30,6 @@ func (c *Consul) Services(consulCh chan Services, wg *sync.WaitGroup) {
 		fmt.Println(err)
 		return
 	}
-
 	consulCh <- services
 }
 
