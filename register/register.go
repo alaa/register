@@ -45,8 +45,8 @@ func (r *Register) Update() {
 		default:
 			containers, services := <-r.dockerCh, <-r.consulCh
 			wg.Add(2)
-			r.register(containers, services, &wg)
-			r.deregister(containers, services, &wg)
+			go r.register(containers, services, &wg)
+			go r.deregister(containers, services, &wg)
 			wg.Wait()
 		}
 	}
