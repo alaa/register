@@ -1,7 +1,6 @@
 package docker
 
 import (
-	"fmt"
 	"log"
 	"sync"
 
@@ -32,14 +31,13 @@ func (d *Docker) ListRunningContainers(ch chan<- Containers, wg *sync.WaitGroup)
 	var containerSlice Containers
 	containers, err := d.client.ListContainers(docker.ListContainersOptions{})
 	if err != nil {
-		fmt.Println(err)
-		return
+		log.Fatal(err)
 	}
 
 	for _, container := range containers {
 		details, err := d.client.InspectContainer(container.ID)
 		if err != nil {
-			fmt.Println(err)
+			log.Fatal(err)
 			return
 		}
 		containerSlice = append(containerSlice, details)

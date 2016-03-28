@@ -1,7 +1,7 @@
 package consul
 
 import (
-	"fmt"
+	"log"
 	"sync"
 
 	consul "github.com/hashicorp/consul/api"
@@ -27,7 +27,7 @@ func (c *Consul) Services(consulCh chan Services, wg *sync.WaitGroup) {
 	defer wg.Done()
 	services, err := c.agent.Services()
 	if err != nil {
-		fmt.Println(err)
+		log.Fatal(err)
 		return
 	}
 	consulCh <- services

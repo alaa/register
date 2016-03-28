@@ -2,6 +2,8 @@ package register
 
 import (
 	"log"
+	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -56,9 +58,14 @@ func (r *Register) register(containers docker.Containers, services consul.Servic
 	defer wg.Done()
 	for _, container := range containers {
 		if !consul.Lookup(container.ID, services) {
-			log.Println("registering ", container.Name)
+
+			log.Printf("ID %v", container.ID)
+			log.Printf("Name %v", container.Name)
+			log.Printf("Ports %v", container.Config.ExposedPorts)
+			log.Printf("Env %v", serviceVars(container.Config.Env))
+
 			if err := r.consulAgent.Register(container.ID, container.Name); err != nil {
-				log.Println(err)
+				log.Fatal(err)
 			}
 		}
 	}
@@ -72,4 +79,40 @@ func (r *Register) deregister(containers docker.Containers, services consul.Serv
 			r.consulAgent.Deregister(service.ID)
 		}
 	}
+}
+
+type envvar map[string]string
+
+const (
+	envKeyRegex   = "SERVICE_([a-zA-Z0-9]+)"
+	envValueRegex = "[a-zA-Z0-9]"
+)
+
+func valid(str string, regex string) bool {
+	r, _ := regexp.Compile(regex)
+	if r.MatchString(str) {
+		return true
+	}
+	return false
+}
+
+func keyPairs(vars []string) envvar {
+	env := make(envvar)
+	for _, v := range vars {
+		if parts := strings.Split(v, "="); len(parts) > 0 {
+			key, value := parts[0], parts[1]
+			env[key] = value
+		}
+	}
+	return env
+}
+
+func serviceVars(vars []string) envvar {
+	serviceEnv := make(envvar)
+	for key, value := range keyPairs(vars) {
+		if valid(key, envKeyRegex) && valid(value, envValueRegex) {
+			serviceEnv[key] = value
+		}
+	}
+	return serviceEnv
 }
