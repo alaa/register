@@ -83,14 +83,11 @@ func (r *Register) deregister(containers docker.Containers, services consul.Serv
 
 type envvar map[string]string
 
-const (
-	envKeyRegex   = "SERVICE_([a-zA-Z0-9]+)"
-	envValueRegex = "[a-zA-Z0-9]"
-)
+var envKeyPattern = regexp.MustCompile(`^SERVICE_[a-zA-Z0-9]{3,}$`)
+var envValuePattern = regexp.MustCompile(`^[a-zA-Z0-9]{3,}$`)
 
-func valid(str string, regex string) bool {
-	r, _ := regexp.Compile(regex)
-	if r.MatchString(str) {
+func valid(str string, pattern *regexp.Regexp) bool {
+	if pattern.MatchString(str) {
 		return true
 	}
 	return false
@@ -108,11 +105,11 @@ func keyPairs(vars []string) envvar {
 }
 
 func serviceVars(vars []string) envvar {
-	serviceEnv := make(envvar)
+	serviceVars := make(envvar)
 	for key, value := range keyPairs(vars) {
-		if valid(key, envKeyRegex) && valid(value, envValueRegex) {
-			serviceEnv[key] = value
+		if valid(key, envKeyPattern) && valid(value, envValuePattern) {
+			serviceVars[key] = value
 		}
 	}
-	return serviceEnv
+	return serviceVars
 }
